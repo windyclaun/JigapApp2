@@ -18,26 +18,26 @@ struct TabBar: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             Group {
-                // TAB 1: DASHBOARD
+                // TAB 1: DASHBOARD (Ikon House)
                 DashboardView(store: store) {
-                    selectedTab = 2
+                    selectedTab = 2 // Alihkan ke History jika memicu "See All"
                 }
-                    .tabItem {
-                        Label("Home", systemImage: "house.fill")
-                    }
-                    .tag(0) // Menandai index tab
+                .tabItem {
+                    Label("Home", systemImage: "house")
+                }
+                .tag(0)
                 
-                // TAB 2: TOMBOL ADD TRANSACTION (Trik intercept ketukan tab native)
+                // TAB 2: INTERCEPT UNTUK ADD TRANSACTION (Ikon Plus)
                 Color.clear
                     .tabItem {
-                        Label("Add", systemImage: "plus.circle.fill")
+                        Label("Add", systemImage: "plus")
                     }
                     .tag(1)
                 
-                // TAB 3: HISTORY
+                // TAB 3: HISTORY (Ikon Clock)
                 HistoryView(store: store)
                     .tabItem {
-                        Label("History", systemImage: "clock.fill")
+                        Label("History", systemImage: "clock")
                     }
                     .tag(2)
             }
@@ -45,12 +45,17 @@ struct TabBar: View {
             .toolbarBackground(.ultraThinMaterial, for: .tabBar)
             .toolbarColorScheme(.dark, for: .tabBar)
         }
-        .tint(Color(red: 1.0, green: 0.2, blue: 0.5))
+        .tint(Color(red: 1.0, green: 0.18, blue: 0.48)) // Disamakan dengan warna accent pink utama
         .onChange(of: selectedTab) { oldValue, newValue in
+            // Jika user mengetan ikon plus (tab 1), intercept dan munculkan modal sheet
             if newValue == 1 {
                 isShowingAddMenu = true
-                selectedTab = oldValue
+                selectedTab = oldValue // Kembalikan sorotan tab aktif ke halaman sebelumnya
             }
+        }
+        // Di sinilah tempat modular terbaik untuk menembakkan modal AddTransactionView
+        .sheet(isPresented: $isShowingAddMenu) {
+            AddTransactionView(store: store)
         }
     }
 }

@@ -8,27 +8,12 @@
 import SwiftUI
 
 struct AddTransactionView: View {
-    @ObservedObject var store: FinancialStore
+    @StateObject private var viewModel: AddTransactionViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     
-    @State private var transactionType: TransactionType = .expense
-    @State private var amountString = ""
-    @State private var selectedCategory = TransactionCategory.expenseDefaults[0]
-    @State private var selectedKantongId = UUID()
-    @State private var transactionDate = Date()
-    @State private var note = ""
-    
-    private var canSave: Bool {
-        Double(amountString) != nil && !amountString.isEmpty
-    }
-    
-    private var selectedKantong: Kantong? {
-        store.daftarKantong.first { $0.id == selectedKantongId }
-    }
-    
-    private var availableCategories: [TransactionCategory] {
-        transactionType == .expense ? TransactionCategory.expenseDefaults : TransactionCategory.incomeDefaults
+    init(store: FinancialStore) {
+        self._viewModel = StateObject(wrappedValue: AddTransactionViewModel(store: store))
     }
     
     var body: some View {
@@ -51,9 +36,9 @@ struct AddTransactionView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear(perform: configureInitialSelection)
-        .onChange(of: transactionType) { _, newType in
-            selectedCategory = newType == .expense ? TransactionCategory.expenseDefaults[0] : TransactionCategory.incomeDefaults[0]
+        .onAppear(perform: viewModel.configureInitialSelection)
+        .onChange(of: viewModel.transactionType) { _, newType in
+            viewModel.handleTypeChange(to: newType)
         }
     }
     
@@ -77,30 +62,31 @@ struct AddTransactionView: View {
     }
     
     private var formContent: some View {
-        LiquidGlassStack {
+//        @Bindable var viewModel = viewModel
+        return LiquidGlassStack {
             VStack(alignment: .leading, spacing: 20) {
-                TransactionTypePicker(selection: $transactionType)
+                TransactionTypePicker(selection: $viewModel.transactionType)
                 
                 AmountGlassField(
-                    amountString: $amountString,
-                    type: transactionType
+                    amountString: $viewModel.amountString,
+                    type: viewModel.transactionType
                 )
                 
                 CategoryPicker(
-                    categories: availableCategories,
-                    selectedCategory: $selectedCategory,
-                    tint: transactionType.tintColor
+                    categories: viewModel.availableCategories,
+                    selectedCategory: $viewModel.selectedCategory,
+                    tint: viewModel.transactionType.tintColor
                 )
                 
                 WalletGlassPicker(
-                    kantongs: store.daftarKantong,
-                    selectedKantongId: $selectedKantongId,
-                    selectedKantong: selectedKantong
+                    kantongs: viewModel.store.daftarKantong,
+                    selectedKantongId: $viewModel.selectedKantongId,
+                    selectedKantong: viewModel.selectedKantong
                 )
                 
                 MetadataFields(
-                    transactionDate: $transactionDate,
-                    note: $note
+                    transactionDate: $viewModel.transactionDate,
+                    note: $viewModel.note
                 )
                 
                 saveButton
@@ -109,51 +95,35 @@ struct AddTransactionView: View {
     }
     
     private var saveButton: some View {
-        Button(action: saveTransaction) {
+        Button(action: {
+            viewModel.saveTransaction {
+                dismiss()
+            }
+        }) {
             HStack(spacing: 8) {
-                Image(systemName: canSave ? "checkmark.circle.fill" : selectedCategory.symbolName)
-                    .font(.system(size: 16, weight: .bold))
-                Text(canSave ? "Save Transaction" : "Enter amount to continue")
+                Image(systemName: viewModel.canSave ? "checkmark.circle.fill" : viewModel.selectedCategory.symbolName)
+                    .font(.system(.body, weight: .bold))
+                Text(viewModel.canSave ? "Save Transaction" : "Enter amount to continue")
                     .font(.system(.headline, design: .rounded))
                     .fontWeight(.heavy)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                    .minimumScaleFactor(0.6)
             }
-            .foregroundStyle(canSave ? .white : .white.opacity(0.62))
+            .foregroundStyle(viewModel.canSave ? .white : .white.opacity(0.62))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 17)
         }
         .buttonStyle(.plain)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(canSave ? transactionType.tintColor : Color.white.opacity(0.08))
+                .fill(viewModel.canSave ? viewModel.transactionType.tintColor : Color.white.opacity(0.08))
         )
-        .liquidGlass(tint: canSave ? transactionType.tintColor : .white.opacity(0.12), cornerRadius: 16, interactive: true)
-        .disabled(!canSave)
-    }
-    
-    private func configureInitialSelection() {
-        if let firstKantong = store.daftarKantong.first, !store.daftarKantong.contains(where: { $0.id == selectedKantongId }) {
-            selectedKantongId = firstKantong.id
-        }
-    }
-    
-    private func saveTransaction() {
-        guard let amount = Double(amountString), canSave else { return }
-        let title = note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? selectedCategory.name : note
-        
-        store.addTransaction(
-            title: title,
-            amount: amount,
-            category: selectedCategory.name,
-            isIncome: transactionType == .income,
-            kantongId: selectedKantongId
-        )
-        
-        dismiss()
+        .liquidGlass(tint: viewModel.canSave ? viewModel.transactionType.tintColor : .white.opacity(0.12), cornerRadius: 16, interactive: true)
+        .disabled(!viewModel.canSave)
     }
 }
 
+// MARK: - Private Extensions & Subviews
 private struct LiquidGlassStack<Content: View>: View {
     @ViewBuilder let content: Content
     
@@ -199,9 +169,12 @@ private struct AddTransactionBackground: View {
 
 private struct TransactionTypePicker: View {
     @Binding var selection: TransactionType
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     
     var body: some View {
-        HStack(spacing: 8) {
+        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        
+        layout {
             ForEach(TransactionType.allCases) { type in
                 Button {
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
@@ -211,7 +184,6 @@ private struct TransactionTypePicker: View {
                     Label(type.title, systemImage: type.symbolName)
                         .font(.system(.subheadline, design: .rounded))
                         .fontWeight(.heavy)
-                        .labelStyle(.titleAndIcon)
                         .foregroundStyle(selection == type ? .white : .white.opacity(0.58))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -237,21 +209,24 @@ private struct AmountGlassField: View {
     @Binding var amountString: String
     let type: TransactionType
     
+    @ScaledMetric(relativeTo: .largeTitle) private var amountFontSize: CGFloat = 48
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             SectionLabel(title: "Amount", systemImage: "dollarsign")
             
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text("Rp")
-                    .font(.system(size: 25, weight: .heavy, design: .rounded))
+                    .font(.system(.title2, design: .rounded))
+                    .fontWeight(.heavy)
                     .foregroundStyle(type.tintColor)
                 
                 TextField("0", text: $amountString)
                     .keyboardType(.numberPad)
-                    .font(.system(size: 48, weight: .heavy, design: .rounded))
+                    .font(.system(size: amountFontSize, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
                     .tint(type.tintColor)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.5)
                     .lineLimit(1)
             }
         }
@@ -309,20 +284,23 @@ private struct CategoryGlassButton: View {
     let tint: Color
     let action: () -> Void
     
+    @ScaledMetric(relativeTo: .body) private var buttonWidth: CGFloat = 78
+    @ScaledMetric(relativeTo: .body) private var buttonHeight: CGFloat = 82
+    
     var body: some View {
         Button(action: action) {
             VStack(spacing: 10) {
                 Image(systemName: category.symbolName)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(.title3, weight: .bold))
                     .symbolRenderingMode(.hierarchical)
                 Text(category.name)
                     .font(.caption2)
                     .fontWeight(.heavy)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.7)
             }
             .foregroundStyle(isSelected ? .white : .white.opacity(0.62))
-            .frame(width: 78, height: 82)
+            .frame(width: buttonWidth, height: buttonHeight)
             .background(
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
                     .fill(isSelected ? tint.opacity(0.42) : Color.white.opacity(0.07))
@@ -341,6 +319,7 @@ private struct WalletGlassPicker: View {
     let kantongs: [Kantong]
     @Binding var selectedKantongId: UUID
     let selectedKantong: Kantong?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -356,7 +335,9 @@ private struct WalletGlassPicker: View {
                     }
                 }
             } label: {
-                HStack(spacing: 14) {
+                let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(spacing: 14))
+                
+                layout {
                     ZStack {
                         Circle()
                             .fill(Color(red: 1.0, green: 0.18, blue: 0.48).opacity(0.22))
@@ -377,14 +358,14 @@ private struct WalletGlassPicker: View {
                             .foregroundStyle(.white.opacity(0.52))
                     }
                     
-                    Spacer()
+                    if !dynamicTypeSize.isAccessibilitySize { Spacer() }
                     
                     Image(systemName: "chevron.down")
                         .font(.system(size: 13, weight: .heavy))
                         .foregroundStyle(.white.opacity(0.52))
                 }
                 .padding(17)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -410,9 +391,13 @@ private struct WalletGlassPicker: View {
 private struct MetadataFields: View {
     @Binding var transactionDate: Date
     @Binding var note: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     
     var body: some View {
-        HStack(spacing: 12) {
+        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
+        
+        layout {
+            // FIX: Baris `@Bindable var test = self` dihapus sepenuhnya agar tidak memicu compile error
             VStack(alignment: .leading, spacing: 9) {
                 SectionLabel(title: "Date", systemImage: "calendar")
                 DatePicker("", selection: $transactionDate, displayedComponents: .date)
@@ -450,56 +435,6 @@ private struct SectionLabel: View {
     }
 }
 
-private enum TransactionType: String, CaseIterable, Identifiable {
-    case expense
-    case income
-    
-    var id: String { rawValue }
-    
-    var title: String {
-        switch self {
-        case .expense: "Expense"
-        case .income: "Income"
-        }
-    }
-    
-    var symbolName: String {
-        switch self {
-        case .expense: "leaf.fill"
-        case .income: "dollarsign.circle.fill"
-        }
-    }
-    
-    var tintColor: Color {
-        switch self {
-        case .expense: Color(red: 1.0, green: 0.12, blue: 0.44)
-        case .income: Color(red: 0.10, green: 0.78, blue: 0.34)
-        }
-    }
-}
-
-private struct TransactionCategory: Identifiable, Hashable {
-    let id = UUID()
-    let name: String
-    let symbolName: String
-    
-    static let expenseDefaults = [
-        TransactionCategory(name: "Food", symbolName: "fork.knife"),
-        TransactionCategory(name: "Coffee", symbolName: "cup.and.saucer.fill"),
-        TransactionCategory(name: "Groceries", symbolName: "cart.fill"),
-        TransactionCategory(name: "Transport", symbolName: "scooter"),
-        TransactionCategory(name: "Shopping", symbolName: "bag.fill")
-    ]
-    
-    static let incomeDefaults = [
-        TransactionCategory(name: "Salary", symbolName: "dollarsign.circle.fill"),
-        TransactionCategory(name: "Freelance", symbolName: "laptopcomputer"),
-        TransactionCategory(name: "Investment", symbolName: "chart.line.uptrend.xyaxis"),
-        TransactionCategory(name: "Gift", symbolName: "gift.fill"),
-        TransactionCategory(name: "Other", symbolName: "sparkles")
-    ]
-}
-
 private extension View {
     @ViewBuilder
     func liquidGlass(tint: Color = .white.opacity(0.12), cornerRadius: CGFloat, interactive: Bool = false) -> some View {
@@ -510,8 +445,16 @@ private extension View {
                 self.glassEffect(.regular.tint(tint), in: .rect(cornerRadius: cornerRadius))
             }
         } else {
-            self
+            self.bottomAestheticBorder(cornerRadius: cornerRadius)
         }
+    }
+    
+    @ViewBuilder
+    func bottomAestheticBorder(cornerRadius: CGFloat) -> some View {
+        self.overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(LinearGradient(colors: [.white.opacity(0.15), .clear, .white.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+        )
     }
     
     func sectionTitleStyle() -> some View {

@@ -1,8 +1,8 @@
 //
-//  OnBoardingView.swift
-//  Jigap
+//   OnBoardingView.swift
+//   Jigap
 //
-//  Created by Windy Claudia Napitupulu on 14/06/26.
+//   Created by Windy Claudia Napitupulu on 14/06/26.
 //
 
 import SwiftUI
@@ -78,138 +78,8 @@ struct OnBoardingView: View {
     }
 }
 
-private struct LoginPanel: View {
-    let onSignIn: () -> Void
-    let onSwitchToRegister: () -> Void
-    let onContinue: () -> Void
-    
-    @State private var email = ""
-    @State private var password = ""
-    @State private var isPasswordVisible = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Welcome back")
-                    .font(.system(.title, design: .rounded))
-                    .fontWeight(.heavy)
-                    .foregroundStyle(.white)
-                
-                Text("Sign in to your account")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white.opacity(0.52))
-            }
-            
-            VStack(spacing: 16) {
-                AuthTextField(
-                    text: $email,
-                    placeholder: "Email address",
-                    iconName: "envelope",
-                    keyboardType: .emailAddress
-                )
-                
-                AuthSecureField(
-                    text: $password,
-                    isVisible: $isPasswordVisible,
-                    placeholder: "Password"
-                )
-                
-                Button(action: {}) {
-                    Text("Forgot password?")
-                        .font(.subheadline)
-                        .fontWeight(.heavy)
-                        .foregroundStyle(AuthPalette.accent)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .buttonStyle(.plain)
-            }
-            
-            AuthPrimaryButton(title: "Sign In", action: onSignIn)
-            
-            HStack(spacing: 4) {
-                Text("Don't have an account?")
-                    .foregroundStyle(.white.opacity(0.50))
-                Button("Sign Up", action: onSwitchToRegister)
-                    .fontWeight(.heavy)
-                    .foregroundStyle(AuthPalette.accent)
-            }
-            .font(.subheadline)
-            .fontWeight(.semibold)
-            .frame(maxWidth: .infinity)
-        }
-    }
-}
-
-private struct RegisterPanel: View {
-    let onCreateAccount: () -> Void
-    let onSwitchToLogin: () -> Void
-    
-    @State private var fullName = ""
-    @State private var email = ""
-    @State private var password = ""
-    @State private var confirmPassword = ""
-    @State private var isPasswordVisible = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Create account")
-                    .font(.system(.title, design: .rounded))
-                    .fontWeight(.heavy)
-                    .foregroundStyle(.white)
-                
-                Text("Start tracking your money today")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white.opacity(0.52))
-            }
-            
-            VStack(spacing: 16) {
-                AuthTextField(
-                    text: $fullName,
-                    placeholder: "Full name",
-                    iconName: "person"
-                )
-                
-                AuthTextField(
-                    text: $email,
-                    placeholder: "Email address",
-                    iconName: "envelope",
-                    keyboardType: .emailAddress
-                )
-                
-                AuthSecureField(
-                    text: $password,
-                    isVisible: $isPasswordVisible,
-                    placeholder: "Password (min. 6 chars)"
-                )
-                
-                AuthSecureField(
-                    text: $confirmPassword,
-                    isVisible: .constant(false),
-                    placeholder: "Confirm password",
-                    showsVisibilityToggle: false
-                )
-            }
-            
-            AuthPrimaryButton(title: "Create Account", action: onCreateAccount)
-            
-            HStack(spacing: 4) {
-                Text("Already have an account?")
-                    .foregroundStyle(.white.opacity(0.50))
-                Button("Sign In", action: onSwitchToLogin)
-                    .fontWeight(.heavy)
-                    .foregroundStyle(AuthPalette.accent)
-            }
-            .font(.subheadline)
-            .fontWeight(.semibold)
-            .frame(maxWidth: .infinity)
-        }
-    }
-}
-
-private struct BrandHeader: View {
+// MARK: - Subviews
+struct BrandHeader: View {
     let compact: Bool
     
     var body: some View {
@@ -244,7 +114,7 @@ private struct BrandHeader: View {
     }
 }
 
-private struct AuthTextField: View {
+struct AuthTextField: View {
     @Binding var text: String
     let placeholder: String
     let iconName: String
@@ -270,7 +140,7 @@ private struct AuthTextField: View {
     }
 }
 
-private struct AuthSecureField: View {
+struct AuthSecureField: View {
     @Binding var text: String
     @Binding var isVisible: Bool
     let placeholder: String
@@ -310,7 +180,7 @@ private struct AuthSecureField: View {
     }
 }
 
-private struct AuthPrimaryButton: View {
+struct AuthPrimaryButton: View {
     let title: String
     let action: () -> Void
     
@@ -330,7 +200,7 @@ private struct AuthPrimaryButton: View {
     }
 }
 
-private struct AuthBackground: View {
+struct AuthBackground: View {
     var body: some View {
         ZStack {
             Color(red: 0.035, green: 0.0, blue: 0.055)
@@ -355,43 +225,6 @@ private struct AuthBackground: View {
                 startRadius: 20,
                 endRadius: 250
             )
-        }
-    }
-}
-
-private enum AuthMode {
-    case login
-    case register
-}
-
-private enum AuthPalette {
-    static let accent = Color(red: 1.0, green: 0.11, blue: 0.46)
-}
-
-private extension View {
-    func authFieldStyle() -> some View {
-        self
-            .padding(.horizontal, 17)
-            .padding(.vertical, 18)
-            .frame(maxWidth: .infinity, minHeight: 58)
-            .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .stroke(AuthPalette.accent.opacity(0.24), lineWidth: 1)
-            )
-            .authLiquidGlass(tint: .white.opacity(0.10), cornerRadius: 17, interactive: true)
-    }
-    
-    @ViewBuilder
-    func authLiquidGlass(tint: Color = .white.opacity(0.12), cornerRadius: CGFloat, interactive: Bool = false) -> some View {
-        if #available(iOS 26.0, *) {
-            if interactive {
-                self.glassEffect(.regular.tint(tint).interactive(), in: .rect(cornerRadius: cornerRadius))
-            } else {
-                self.glassEffect(.regular.tint(tint), in: .rect(cornerRadius: cornerRadius))
-            }
-        } else {
-            self
         }
     }
 }

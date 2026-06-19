@@ -13,15 +13,13 @@ struct ContentView: View {
     @State private var isShowingAddMenu = false
     
     var body: some View {
-        // Panggil Reusable View Tab Bar buatan kita
         TabBar(
             selectedTab: $selectedTab,
             isShowingAddMenu: $isShowingAddMenu,
             store: store
         )
-        // Lembar input transaksi yang ditaruh terpusat pada tingkat root layar
         .sheet(isPresented: $isShowingAddMenu) {
-            AddMenuView(store: store)
+            AddWalletView(store: store)
         }
     }
 }
