@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct RegisterPanel: View {
-    let onCreateAccount: () -> Void
+    // 1. Sesuaikan closure agar mengirimkan nama, email, dan password ke OnBoardingView
+    let onCreateAccount: (String, String, String) -> Void
     let onSwitchToLogin: () -> Void
     
     @State private var fullName = ""
@@ -16,6 +17,10 @@ struct RegisterPanel: View {
     @State private var password = ""
     @State private var confirmPassword = ""
     @State private var isPasswordVisible = false
+    
+    // Status pesan eksternal & internal untuk feedback visual
+    @Binding var errorMessage: String?
+    @State private var successMessage: String? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -59,7 +64,73 @@ struct RegisterPanel: View {
                 )
             }
             
-            AuthPrimaryButton(title: "Create Account", action: onCreateAccount)
+            // MARK: - Banner Status (Sukses / Eror)
+            if let error = errorMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                    Text(error)
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                }
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            } else if let success = successMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text(success)
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                }
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .transition(.opacity)
+            }
+            
+            AuthPrimaryButton(title: "Create Account", action: {
+                errorMessage = nil
+                successMessage = nil
+                
+                // 1. Validasi Input Kosong
+                if fullName.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty {
+                    withAnimation(.easeInOut) {
+                        errorMessage = "Semua kolom wajib diisi."
+                    }
+                    return
+                }
+                
+                // 2. Validasi Minimal Karakter Password
+                if password.count < 6 {
+                    withAnimation(.easeInOut) {
+                        errorMessage = "Password minimal terdiri dari 6 karakter."
+                    }
+                    return
+                }
+                
+                // 3. Validasi Kecocokan Password
+                if password != confirmPassword {
+                    withAnimation(.easeInOut) {
+                        errorMessage = "Konfirmasi password tidak cocok."
+                    }
+                    return
+                }
+                
+                // Lemparkan data ke OnBoardingView untuk didaftarkan ke FinancialStore
+                onCreateAccount(fullName, email, password)
+                
+                // Jika tidak ada error dari Store (misal email duplikat), tampilkan sukses
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    if errorMessage == nil {
+                        withAnimation(.easeInOut) {
+                            successMessage = "Akun berhasil dibuat! Silakan masuk."
+                        }
+                    }
+                }
+            })
             
             HStack(spacing: 4) {
                 Text("Already have an account?")
@@ -81,8 +152,9 @@ struct RegisterPanel: View {
             .ignoresSafeArea()
         
         RegisterPanel(
-            onCreateAccount: { print("Create Account Tapped") },
-            onSwitchToLogin: { print("Switch to Login Tapped") }
+            onCreateAccount: { name, email, pass in print("Register: \(name) - \(email)") },
+            onSwitchToLogin: { print("Switch to Login Tapped") },
+            errorMessage: .constant(nil)
         )
         .padding(.horizontal, 30)
     }

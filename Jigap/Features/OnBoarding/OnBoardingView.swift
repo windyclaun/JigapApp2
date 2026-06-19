@@ -8,8 +8,15 @@
 import SwiftUI
 
 struct OnBoardingView: View {
+    // Ambil store global yang disuntikkan dari JigapApp.swift
+    @EnvironmentObject var store: FinancialStore
+    @AppStorage("isLoggedIn") private var isLoggedIn: Bool = false
+    
     var onAuthenticated: () -> Void = {}
     @State private var mode: AuthMode = .login
+    
+    // MARK: - State Tambahan untuk Validasi Pesan
+    @State private var authErrorMessage: String? = nil
     
     var body: some View {
         ZStack {
@@ -23,29 +30,71 @@ struct OnBoardingView: View {
                     
                     if mode == .login {
                         LoginPanel(
-                            onSignIn: onAuthenticated,
+                            onSignIn: { emailData, passwordData in
+                                // Ambil daftar user berbasis memori di FinancialStore
+                                if let user = store.allUsers[emailData] {
+                                    if user.password == passwordData {
+                                        // 1. Set nama user aktif di store finansial jika cocok
+                                        store.switchAccount(to: emailData)
+                                        // 2. Trigger ganti halaman ke dashboard
+                                        withAnimation { isLoggedIn = true }
+                                        onAuthenticated()
+                                    } else {
+                                        withAnimation(.easeInOut) {
+                                            authErrorMessage = "Password yang kamu masukkan salah."
+                                        }
+                                    }
+                                } else {
+                                    withAnimation(.easeInOut) {
+                                        authErrorMessage = "Akun tidak ditemukan. Silakan Sign Up terlebih dahulu."
+                                    }
+                                }
+                            },
                             onSwitchToRegister: {
+                                authErrorMessage = nil // Reset pesan saat tukar halaman
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
                                     mode = .register
                                 }
                             },
-                            onContinue: onAuthenticated
+                            onContinue: {
+                                // Masuk sebagai guest dari tombol dalam panel
+                                store.switchAccount(to: "guest_user")
+                                withAnimation { isLoggedIn = true }
+                                onAuthenticated()
+                            },
+                            errorMessage: $authErrorMessage // Ikat state error ke panel login
                         )
                         .transition(.asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .move(edge: .leading).combined(with: .opacity)))
                     } else {
                         RegisterPanel(
-                            onCreateAccount: onAuthenticated,
+                            onCreateAccount: { nameData, emailData, passwordData in
+                                // Validasi memori lokal: Cek jika email sudah terpakai
+                                if store.allUsers[emailData] != nil {
+                                    withAnimation(.easeInOut) {
+                                        authErrorMessage = "Email ini sudah terdaftar di perangkat ini."
+                                    }
+                                } else {
+                                    // 1. Buatkan akun memori terpisah baru di FinancialStore
+                                    store.registerNewUser(name: nameData, email: emailData, password: passwordData)
+                                    store.switchAccount(to: emailData)
+                                    
+                                    // 2. Langsung login masuk dashboard
+                                    withAnimation { isLoggedIn = true }
+                                    onAuthenticated()
+                                }
+                            },
                             onSwitchToLogin: {
+                                authErrorMessage = nil // Reset pesan saat tukar halaman
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
                                     mode = .login
                                 }
-                            }
+                            },
+                            errorMessage: $authErrorMessage // Ikat state error ke panel register
                         )
                         .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                     }
                     
                     Spacer(minLength: 24)
-                    
                     footer
                 }
                 .padding(.horizontal, 30)
@@ -57,10 +106,18 @@ struct OnBoardingView: View {
         .preferredColorScheme(.dark)
     }
     
+    // MARK: - Perbaikan Logika Tombol Guest Mode di Footer
     private var footer: some View {
         VStack(spacing: 6) {
             if mode == .login {
-                Button(action: onAuthenticated) {
+                Button(action: {
+                    // FIX: Set status akun & trigger perpindahan view root
+                    store.switchAccount(to: "guest_user")
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                        isLoggedIn = true
+                    }
+                    onAuthenticated()
+                }) {
                     Label("Continue without account", systemImage: "arrow.right")
                         .labelStyle(.titleAndIcon)
                         .font(.subheadline)
@@ -171,6 +228,7 @@ struct AuthSecureField: View {
                 } label: {
                     Image(systemName: isVisible ? "eye.slash" : "eye")
                         .font(.system(size: 15, weight: .bold))
+                    
                         .foregroundStyle(.white.opacity(0.46))
                 }
                 .buttonStyle(.plain)
@@ -231,4 +289,5 @@ struct AuthBackground: View {
 
 #Preview("Login") {
     OnBoardingView()
+        .environmentObject(FinancialStore())
 }

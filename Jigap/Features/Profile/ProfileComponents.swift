@@ -37,12 +37,18 @@ struct ProfileBackground: View {
     }
 }
 
-// MARK: - Header Card
+// MARK: - Header Card (Dioptimasi untuk inisial nama dinamis)
 struct ProfileHeaderCard: View {
     let name: String
     let subtitle: String
     let walletCount: Int
     let accentColor: Color
+    
+    // Mengambil huruf pertama dari nama untuk avatar profile secara dinamis
+    private var nameInitial: String {
+        guard let firstChar = name.trimmingCharacters(in: .whitespacesAndNewlines).first else { return "G" }
+        return String(firstChar).uppercased()
+    }
     
     var body: some View {
         HStack(spacing: 16) {
@@ -51,7 +57,7 @@ struct ProfileHeaderCard: View {
                     .fill(accentColor)
                     .frame(width: 70, height: 70)
                     .shadow(color: accentColor.opacity(0.45), radius: 18, x: 0, y: 8)
-                Text("G")
+                Text(nameInitial) // Menampilkan inisial huruf dinamis
                     .font(.system(size: 28, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
             }
@@ -100,9 +106,9 @@ struct ProfileSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title.uppercased())
                 .font(.subheadline)
-                    .fontWeight(.heavy)
-                    .foregroundStyle(Color(red: 1.0, green: 0.58, blue: 0.72).opacity(0.70))
-                    .tracking(0.8)
+                .fontWeight(.heavy)
+                .foregroundStyle(Color(red: 1.0, green: 0.58, blue: 0.72).opacity(0.70))
+                .tracking(0.8)
             
             VStack(spacing: 0) {
                 content
@@ -179,12 +185,13 @@ struct ProfileDivider: View {
     }
 }
 
-// MARK: - Sign Out Button
+// MARK: - Sign Out Button (Ditambahkan parameter action closure)
 struct SignOutButton: View {
     let tint: Color
+    var action: () -> Void = {} // Callback untuk menerima aksi dari luar view
     
     var body: some View {
-        Button(action: {}) {
+        Button(action: action) {
             Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                 .font(.system(.headline, design: .rounded))
                 .fontWeight(.heavy)

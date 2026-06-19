@@ -8,7 +8,12 @@
 import SwiftUI
 
 struct ProfileView: View {
-    @ObservedObject var store: FinancialStore = FinancialStore()
+    // 1. Ambal instance store global yang sama dengan view lainnya
+    @EnvironmentObject var store: FinancialStore
+    
+    // 2. Ikat status login AppStorage untuk memicu aksi Sign Out ke Root View
+    @AppStorage("isLoggedIn") private var isLoggedIn: Bool = false
+    
     private let accentColor = Color(red: 1.0, green: 0.18, blue: 0.48)
     
     var body: some View {
@@ -18,9 +23,15 @@ struct ProfileView: View {
             
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
+                    
+                    // 3. Mengambil nama user yang sedang aktif secara dinamis dari FinancialStore
+                    // Di dalam ProfileView.swift bagian deklarasi nama:
+                    let currentUserName = store.allUsers[store.currentUserEmailPublic]?.name ?? "Guest"
+                    let currentUserSubtitle = store.currentUserEmailPublic == "guest" ? "Kantong user" : store.currentUserEmailPublic
+                    
                     ProfileHeaderCard(
-                        name: "Guest",
-                        subtitle: "Kantong user",
+                        name: currentUserName,
+                        subtitle: currentUserSubtitle,
                         walletCount: store.daftarKantong.count,
                         accentColor: accentColor
                     )
@@ -44,7 +55,12 @@ struct ProfileView: View {
                         ProfileMenuRow(iconName: "questionmark.circle", title: "Help & FAQ", subtitle: "Get support", tint: accentColor)
                     }
                     
-                    SignOutButton(tint: accentColor)
+                    // 4. Menerapkan closure action baru ke SignOutButton
+                    SignOutButton(tint: accentColor) {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                            isLoggedIn = false
+                        }
+                    }
                     
                     Text("Kantong v1.0.0")
                         .font(.caption)
@@ -64,4 +80,5 @@ struct ProfileView: View {
 // MARK: - Preview
 #Preview {
     ProfileView()
+        .environmentObject(FinancialStore())
 }

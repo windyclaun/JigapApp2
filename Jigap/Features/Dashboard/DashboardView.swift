@@ -100,7 +100,7 @@ struct DashboardView: View {
             
             Spacer()
             
-            NavigationLink(destination: ProfileView(store: viewModel.store)) {
+            NavigationLink(destination: ProfileView()) {
                 Text("A")
                     .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
