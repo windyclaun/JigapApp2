@@ -14,7 +14,6 @@ struct AddWalletView: View {
     // State lokal form input
     @State private var walletName: String = ""
     @State private var initialBalance: String = ""
-    @State private var allocationPercentage: Double = 10
     @State private var selectedIcon: String = "creditcard.fill"
     @State private var selectedColor: Color = Color(red: 1.0, green: 0.18, blue: 0.48)
     
@@ -51,8 +50,7 @@ struct AddWalletView: View {
                             selectedIcon: selectedIcon,
                             selectedColor: selectedColor,
                             walletName: walletName,
-                            initialBalance: initialBalance,
-                            allocationPercentage: allocationPercentage
+                            initialBalance: initialBalance
                         )
                         
                         // Form Kontainer Fields
@@ -94,24 +92,6 @@ struct AddWalletView: View {
                                         RoundedRectangle(cornerRadius: 12)
                                             .stroke(.white.opacity(0.12), lineWidth: 1)
                                     )
-                            }
-                            
-                            // Slider Batas Alokasi
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text("Allocation Limit")
-                                        .font(.caption)
-                                        .fontWeight(.heavy)
-                                        .foregroundStyle(.white.opacity(0.52))
-                                    Spacer()
-                                    Text("\(Int(allocationPercentage))%")
-                                        .font(.subheadline)
-                                        .fontWeight(.bold)
-                                        .foregroundStyle(selectedColor)
-                                }
-                                
-                                Slider(value: $allocationPercentage, in: 0...100, step: 5)
-                                    .tint(selectedColor)
                             }
                             
                             // Komponen Pemilih Ikon dari File Komponen
@@ -167,15 +147,12 @@ struct AddWalletView: View {
     
     // MARK: - Logic Action
     private func saveWalletAction() {
-        let newKantong = Kantong(
+        store.addKantong(
             name: walletName,
             balance: balanceDoubleValue,
-            allocationPercentage: Int(allocationPercentage),
             iconName: selectedIcon,
             themeColor: selectedColor
         )
-        
-        store.daftarKantong.append(newKantong)
         dismiss()
     }
 }

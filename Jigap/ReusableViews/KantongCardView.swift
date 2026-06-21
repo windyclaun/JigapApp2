@@ -14,22 +14,12 @@ struct KantongCardView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header: Icon + Persentase Alokasi
-            HStack {
-                Image(systemName: kantong.iconName)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 32, height: 32)
-                    .background(kantong.themeColor.opacity(0.3))
-                    .clipShape(Circle())
-                
-                Spacer()
-                
-                Text("\(kantong.allocationPercentage)%")
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.gray)
-            }
+            Image(systemName: kantong.iconName)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 32, height: 32)
+                .background(kantong.themeColor.opacity(0.3))
+                .clipShape(Circle())
             
             // Informasi Nama Kantong & Saldo
             VStack(alignment: .leading, spacing: 4) {
@@ -54,7 +44,7 @@ struct KantongCardView: View {
                 .stroke(Color.init(red: 1.0, green: 0.2, blue: 0.5).opacity(0.2), lineWidth: 1) // Glowing neon stroke tipis
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Kantong \(kantong.name), alokasi \(kantong.allocationPercentage) persen, saldo \(Int(kantong.balance)) rupiah")
+        .accessibilityLabel("Kantong \(kantong.name), saldo \(Int(kantong.balance)) rupiah")
     }
     
     private func formatShortCurrency(_ value: Double) -> String {

@@ -9,20 +9,22 @@ import SwiftUI
 
 // MARK: - Background
 struct ProfileBackground: View {
+    var highContrast: Bool = false
+    
     var body: some View {
         ZStack {
-            Color(red: 0.035, green: 0.0, blue: 0.055)
+            Color(red: highContrast ? 0.0 : 0.035, green: 0.0, blue: highContrast ? 0.015 : 0.055)
             LinearGradient(
                 colors: [
-                    Color(red: 0.23, green: 0.02, blue: 0.19).opacity(0.95),
-                    Color(red: 0.07, green: 0.0, blue: 0.08).opacity(0.98),
+                    Color(red: 0.23, green: 0.02, blue: 0.19).opacity(highContrast ? 1.0 : 0.95),
+                    Color(red: 0.07, green: 0.0, blue: 0.08).opacity(highContrast ? 1.0 : 0.98),
                     Color(red: 0.02, green: 0.0, blue: 0.04)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
             RadialGradient(
-                colors: [Color(red: 1.0, green: 0.16, blue: 0.48).opacity(0.20), .clear],
+                colors: [Color(red: 1.0, green: 0.16, blue: 0.48).opacity(highContrast ? 0.32 : 0.20), .clear],
                 center: .topTrailing,
                 startRadius: 10,
                 endRadius: 280
@@ -44,12 +46,6 @@ struct ProfileHeaderCard: View {
     let walletCount: Int
     let accentColor: Color
     
-    // Mengambil huruf pertama dari nama untuk avatar profile secara dinamis
-    private var nameInitial: String {
-        guard let firstChar = name.trimmingCharacters(in: .whitespacesAndNewlines).first else { return "G" }
-        return String(firstChar).uppercased()
-    }
-    
     var body: some View {
         HStack(spacing: 16) {
             ZStack {
@@ -57,8 +53,9 @@ struct ProfileHeaderCard: View {
                     .fill(accentColor)
                     .frame(width: 70, height: 70)
                     .shadow(color: accentColor.opacity(0.45), radius: 18, x: 0, y: 8)
-                Text(nameInitial) // Menampilkan inisial huruf dinamis
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.system(size: 46, weight: .bold))
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.white)
             }
             .offset(y: 12)

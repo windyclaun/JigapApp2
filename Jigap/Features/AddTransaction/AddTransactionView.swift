@@ -40,6 +40,21 @@ struct AddTransactionView: View {
         .onChange(of: viewModel.transactionType) { _, newType in
             viewModel.handleTypeChange(to: newType)
         }
+        .sheet(isPresented: $viewModel.isShowingCategoryForm) {
+            AddCategorySheet(
+                categoryName: $viewModel.newCategoryName,
+                selectedSymbolName: $viewModel.newCategorySymbolName,
+                tint: viewModel.transactionType.tintColor,
+                transactionTypeTitle: viewModel.transactionType.title,
+                onCancel: {
+                    viewModel.newCategoryName = ""
+                    viewModel.isShowingCategoryForm = false
+                },
+                onSave: viewModel.addCustomCategory
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
     }
     
     private var header: some View {
@@ -75,7 +90,10 @@ struct AddTransactionView: View {
                 CategoryPicker(
                     categories: viewModel.availableCategories,
                     selectedCategory: $viewModel.selectedCategory,
-                    tint: viewModel.transactionType.tintColor
+                    tint: viewModel.transactionType.tintColor,
+                    onAddCategory: {
+                        viewModel.isShowingCategoryForm = true
+                    }
                 )
                 
                 WalletGlassPicker(
@@ -252,11 +270,28 @@ private struct CategoryPicker: View {
     let categories: [TransactionCategory]
     @Binding var selectedCategory: TransactionCategory
     let tint: Color
+    let onAddCategory: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Category")
-                .sectionTitleStyle()
+            HStack {
+                Text("Category")
+                    .sectionTitleStyle()
+                
+                Spacer()
+                
+                Button(action: onAddCategory) {
+                    Label("Add", systemImage: "plus")
+                        .font(.caption)
+                        .fontWeight(.heavy)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(tint.opacity(0.35), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add category")
+            }
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
@@ -312,6 +347,95 @@ private struct CategoryGlassButton: View {
         }
         .buttonStyle(.plain)
         .liquidGlass(tint: isSelected ? tint.opacity(0.42) : .white.opacity(0.08), cornerRadius: 17, interactive: true)
+    }
+}
+
+private struct AddCategorySheet: View {
+    @Binding var categoryName: String
+    @Binding var selectedSymbolName: String
+    let tint: Color
+    let transactionTypeTitle: String
+    let onCancel: () -> Void
+    let onSave: () -> Void
+    
+    private let symbols = [
+        "tag.fill", "fork.knife", "cart.fill", "car.fill",
+        "house.fill", "heart.fill", "gift.fill", "banknote.fill",
+        "briefcase.fill", "chart.line.uptrend.xyaxis", "sparkles", "ellipsis.circle.fill"
+    ]
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AddTransactionBackground()
+                    .ignoresSafeArea()
+                
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("New \(transactionTypeTitle) Category")
+                        .font(.system(.title3, design: .rounded))
+                        .fontWeight(.heavy)
+                        .foregroundStyle(.white)
+                    
+                    TextField("Category name", text: $categoryName)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .tint(tint)
+                        .padding(16)
+                        .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(tint.opacity(0.28), lineWidth: 1)
+                        )
+                    
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
+                        ForEach(symbols, id: \.self) { symbol in
+                            Button {
+                                selectedSymbolName = symbol
+                            } label: {
+                                Image(systemName: symbol)
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundStyle(selectedSymbolName == symbol ? .white : .white.opacity(0.62))
+                                    .frame(maxWidth: .infinity, minHeight: 52)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .fill(selectedSymbolName == symbol ? tint.opacity(0.42) : Color.white.opacity(0.08))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .stroke(selectedSymbolName == symbol ? tint.opacity(0.72) : .white.opacity(0.10), lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(symbol)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: onSave) {
+                        Text("Save Category")
+                            .font(.headline)
+                            .fontWeight(.heavy)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(tint, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .opacity(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
+                }
+                .padding(24)
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel", action: onCancel)
+                        .foregroundStyle(.white.opacity(0.72))
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }
 

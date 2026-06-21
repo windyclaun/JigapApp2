@@ -31,11 +31,12 @@ struct OnBoardingView: View {
                     if mode == .login {
                         LoginPanel(
                             onSignIn: { emailData, passwordData in
+                                let cleanedEmail = emailData.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                                 // Ambil daftar user berbasis memori di FinancialStore
-                                if let user = store.allUsers[emailData] {
+                                if let user = store.allUsers[cleanedEmail] {
                                     if user.password == passwordData {
                                         // 1. Set nama user aktif di store finansial jika cocok
-                                        store.switchAccount(to: emailData)
+                                        store.switchAccount(to: cleanedEmail)
                                         // 2. Trigger ganti halaman ke dashboard
                                         withAnimation { isLoggedIn = true }
                                         onAuthenticated()
@@ -127,7 +128,7 @@ struct OnBoardingView: View {
                 .buttonStyle(.plain)
             }
             
-            Text("Kantong - Premium Money Tracker")
+            Text("Jigap - Premium Money Tracker")
                 .font(.caption)
                 .fontWeight(.heavy)
                 .foregroundStyle(.white.opacity(0.14))
@@ -141,21 +142,16 @@ struct BrandHeader: View {
     
     var body: some View {
         VStack(spacing: compact ? 18 : 22) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .fill(AuthPalette.accent)
-                    .frame(width: 80, height: 80)
-                    .shadow(color: AuthPalette.accent.opacity(0.52), radius: 28, x: 0, y: 14)
-                
-                Image(systemName: "handbag.fill")
-                    .font(.system(size: 34, weight: .heavy))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.white.opacity(0.92))
-            }
+            Image("LogoApp")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 80, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .shadow(color: AuthPalette.accent.opacity(0.52), radius: 28, x: 0, y: 14)
             .authLiquidGlass(tint: AuthPalette.accent.opacity(0.35), cornerRadius: 26, interactive: false)
             
             VStack(spacing: 8) {
-                Text("Kantong")
+                Text("Jigap")
                     .font(.system(size: 31, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
                 

@@ -13,7 +13,6 @@ struct WalletPreviewCard: View {
     let selectedColor: Color
     let walletName: String
     let initialBalance: String
-    let allocationPercentage: Double
     
     var body: some View {
         GlassCard(cornerRadius: 20) {
@@ -33,23 +32,7 @@ struct WalletPreviewCard: View {
                         .fontWeight(.heavy)
                         .foregroundStyle(.white)
                 }
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    GeometryReader { proxy in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.12))
-                            Capsule()
-                                .fill(selectedColor)
-                                .frame(width: proxy.size.width * CGFloat(allocationPercentage) / 100)
-                        }
-                    }
-                    .frame(height: 5)
-                    
-                    Text("\(Int(allocationPercentage))% remaining")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white.opacity(0.48))
-                }
+
             }
         }
         .frame(width: 160, height: 160)

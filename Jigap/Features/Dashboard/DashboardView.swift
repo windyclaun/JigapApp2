@@ -73,15 +73,8 @@ struct DashboardView: View {
     
     private var headerView: some View {
         HStack(alignment: .center) {
-            Button(action: {}) {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.86))
-                    .frame(width: 44, height: 44)
-                    .background(.white.opacity(0.12), in: Circle())
-                    .overlay(Circle().stroke(.white.opacity(0.12), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
+            Color.clear
+                .frame(width: 44, height: 44)
             
             Spacer()
             
@@ -101,8 +94,8 @@ struct DashboardView: View {
             Spacer()
             
             NavigationLink(destination: ProfileView()) {
-                Text("A")
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                Image(systemName: "person.fill")
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
                     .background(
@@ -113,6 +106,7 @@ struct DashboardView: View {
                     .overlay(Circle().stroke(.white.opacity(0.38), lineWidth: 1.5))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Open profile")
         }
         .padding(.horizontal, 24)
     }
@@ -149,7 +143,7 @@ struct DashboardView: View {
                         .lineLimit(1)
                         .foregroundStyle(.white)
                     
-                    Text("Monthly income: Rp 8.000.000")
+                    Text("Monthly income: \(viewModel.formatCurrency(viewModel.store.monthlyIncome))")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white.opacity(0.44))
@@ -213,7 +207,10 @@ struct DashboardView: View {
             }
             .padding(.horizontal, 24)
             
-            if dynamicTypeSize.isAccessibilitySize {
+            if viewModel.store.daftarKantong.isEmpty {
+                emptyKantongState
+                    .padding(.horizontal, 24)
+            } else if dynamicTypeSize.isAccessibilitySize {
                 VStack(spacing: 12) {
                     ForEach(viewModel.store.daftarKantong) { kantong in
                         walletCard(kantong)
@@ -232,6 +229,36 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+    
+    private var emptyKantongState: some View {
+        Button {
+            isShowingAddMenu = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "wallet.pass")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(viewModel.accentColor)
+                    .frame(width: 42, height: 42)
+                    .background(viewModel.accentColor.opacity(0.16), in: Circle())
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("No kantong yet")
+                        .font(.headline)
+                        .fontWeight(.heavy)
+                        .foregroundStyle(.white)
+                    Text("Add your first wallet to start tracking balances.")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white.opacity(0.54))
+                }
+                
+                Spacer()
+            }
+            .padding(16)
+            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
     
     private var weeklyFlowCard: some View {
@@ -263,6 +290,13 @@ struct DashboardView: View {
                 HStack(alignment: .bottom, spacing: 16) {
                     ForEach(viewModel.weeklyBars) { bar in
                         VStack(spacing: 8) {
+                            Text(viewModel.formatShortCurrency(bar.amount))
+                                .font(.caption2)
+                                .fontWeight(.heavy)
+                                .foregroundStyle(.white.opacity(bar.amount > 0 ? 0.70 : 0.28))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                            
                             RoundedRectangle(cornerRadius: 6, style: .continuous)
                                 .fill(
                                     LinearGradient(
@@ -287,9 +321,11 @@ struct DashboardView: View {
                                 .foregroundStyle(.white.opacity(bar.isToday ? 0.82 : 0.42))
                         }
                         .frame(maxWidth: .infinity)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(bar.label), spent \(viewModel.formatCurrency(bar.amount))")
                     }
                 }
-                .frame(height: 118, alignment: .bottom)
+                .frame(height: 140, alignment: .bottom)
             }
         }
         .padding(.horizontal, 24)
@@ -330,10 +366,10 @@ struct DashboardView: View {
     }
     
     private func walletCard(_ kantong: Kantong) -> some View {
-        GlassCard(cornerRadius: 20) {
-            VStack(alignment: .leading, spacing: 13) {
+        GlassCard(cornerRadius: 18) {
+            VStack(alignment: .leading, spacing: 10) {
                 Image(systemName: kantong.iconName)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 19, weight: .bold))
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(kantong.themeColor)
                 
@@ -348,28 +384,10 @@ struct DashboardView: View {
                         .fontWeight(.heavy)
                         .foregroundStyle(.white)
                 }
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    GeometryReader { proxy in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.12))
-                            Capsule()
-                                .fill(viewModel.accentColor)
-                                .frame(width: proxy.size.width * CGFloat(kantong.allocationPercentage) / 100)
-                        }
-                    }
-                    .frame(height: 4)
-                    
-                    Text("\(kantong.allocationPercentage)% remaining")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white.opacity(0.48))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
+
             }
         }
-        .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 144, height: dynamicTypeSize.isAccessibilitySize ? nil : 148, alignment: .leading)
+        .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 132, height: dynamicTypeSize.isAccessibilitySize ? nil : 118, alignment: .leading)
     }
     
     private func dashboardTransactionRow(_ transaction: Transaction) -> some View {

@@ -17,6 +17,7 @@ import Combine
 
 class DashboardViewModel: ObservableObject {
     @Published var store: FinancialStore
+    private var storeCancellable: AnyCancellable?
     
     let accentColor = Color(red: 1.0, green: 0.18, blue: 0.48)
     let cyanColor = Color(red: 0.18, green: 0.92, blue: 0.88)
@@ -24,6 +25,9 @@ class DashboardViewModel: ObservableObject {
     
     init(store: FinancialStore = FinancialStore()) {
         self.store = store
+        self.storeCancellable = store.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
     }
     
     // MARK: - Perhitungan (Calculated Properties)
@@ -34,21 +38,43 @@ class DashboardViewModel: ObservableObject {
     }
     
     var weeklyTotal: Double {
-        store.daftarTransaksi
+        transactionsThisWeek
             .filter { !$0.isIncome }
             .reduce(0) { $0 + $1.amount }
     }
     
     var weeklyBars: [WeeklyBar] {
-        [
-            WeeklyBar(label: "Sen", height: 54, isToday: false),
-            WeeklyBar(label: "Sel", height: 38, isToday: false),
-            WeeklyBar(label: "Rab", height: 74, isToday: false),
-            WeeklyBar(label: "Kam", height: 43, isToday: false),
-            WeeklyBar(label: "Jum", height: 90, isToday: true),
-            WeeklyBar(label: "Sab", height: 64, isToday: false),
-            WeeklyBar(label: "Min", height: 35, isToday: false)
-        ]
+        let calendar = Calendar.current
+        let today = Date()
+        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
+        let dailyExpenses = Dictionary(grouping: transactionsThisWeek.filter { !$0.isIncome }) { transaction in
+            calendar.startOfDay(for: transaction.date)
+        }
+        .mapValues { transactions in
+            transactions.reduce(0) { $0 + $1.amount }
+        }
+        let highestAmount = max(dailyExpenses.values.max() ?? 0, 1)
+        let labels = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
+        
+        return (0..<7).compactMap { dayOffset in
+            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: startOfWeek) else { return nil }
+            let dayStart = calendar.startOfDay(for: date)
+            let amount = dailyExpenses[dayStart] ?? 0
+            let weekdayIndex = calendar.component(.weekday, from: date) - 1
+            let normalizedHeight = CGFloat(amount / highestAmount)
+            
+            return WeeklyBar(
+                label: labels[weekdayIndex],
+                amount: amount,
+                height: max(18, 28 + (normalizedHeight * 70)),
+                isToday: calendar.isDateInToday(date)
+            )
+        }
+    }
+    
+    private var transactionsThisWeek: [Transaction] {
+        guard let weekInterval = Calendar.current.dateInterval(of: .weekOfYear, for: Date()) else { return [] }
+        return store.daftarTransaksi.filter { weekInterval.contains($0.date) }
     }
     
     var currentMonthTitle: String {
@@ -113,6 +139,7 @@ class DashboardViewModel: ObservableObject {
 struct WeeklyBar: Identifiable {
     let id = UUID()
     let label: String
+    let amount: Double
     let height: CGFloat
     let isToday: Bool
 }

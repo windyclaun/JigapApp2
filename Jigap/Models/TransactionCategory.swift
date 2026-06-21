@@ -7,8 +7,8 @@
 
 import Foundation
 
-struct TransactionCategory: Identifiable, Equatable {
-    let id = UUID()
+struct TransactionCategory: Identifiable, Equatable, Hashable, Codable {
+    var id = UUID()
     var name: String
     var symbolName: String
     

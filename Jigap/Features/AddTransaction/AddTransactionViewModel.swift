@@ -18,6 +18,9 @@ class AddTransactionViewModel: ObservableObject {
     @Published var selectedKantongId = UUID()
     @Published var transactionDate = Date()
     @Published var note = ""
+    @Published var isShowingCategoryForm = false
+    @Published var newCategoryName = ""
+    @Published var newCategorySymbolName = "tag.fill"
     
     init(store: FinancialStore) {
         self.store = store
@@ -35,7 +38,11 @@ class AddTransactionViewModel: ObservableObject {
     }
     
     var availableCategories: [TransactionCategory] {
-        transactionType == .expense ? TransactionCategory.expenseDefaults : TransactionCategory.incomeDefaults
+        if transactionType == .expense {
+            return TransactionCategory.expenseDefaults + store.customExpenseCategories
+        } else {
+            return TransactionCategory.incomeDefaults + store.customIncomeCategories
+        }
     }
     
     // MARK: - Actions
@@ -47,7 +54,23 @@ class AddTransactionViewModel: ObservableObject {
     }
     
     func handleTypeChange(to newType: TransactionType) {
-        selectedCategory = newType == .expense ? TransactionCategory.expenseDefaults[0] : TransactionCategory.incomeDefaults[0]
+        selectedCategory = availableCategories[0]
+        newCategorySymbolName = newType == .expense ? "tag.fill" : "banknote.fill"
+    }
+    
+    func addCustomCategory() {
+        store.addCustomCategory(
+            name: newCategoryName,
+            symbolName: newCategorySymbolName,
+            isIncome: transactionType == .income
+        )
+        
+        if let createdCategory = availableCategories.first(where: { $0.name.caseInsensitiveCompare(newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame }) {
+            selectedCategory = createdCategory
+        }
+        
+        newCategoryName = ""
+        isShowingCategoryForm = false
     }
     
     func saveTransaction(completion: () -> Void) {

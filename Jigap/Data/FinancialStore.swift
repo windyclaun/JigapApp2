@@ -10,22 +10,30 @@ import SwiftUI
 import Combine
 
 class FinancialStore: ObservableObject {
-    // 1. DATA UTAMA (Single Source of Truth)
     @Published var daftarKantong: [Kantong] = [] {
         didSet { saveUserData() }
     }
     @Published var daftarTransaksi: [Transaction] = [] {
         didSet { saveUserData() }
     }
-    @Published var dailySpendingCap: Double = 152000 {
+    @Published var dailySpendingCap: Double = 0 {
+        didSet { saveUserData() }
+    }
+    @Published var monthlyIncome: Double = 0 {
+        didSet { saveUserData() }
+    }
+    @Published var customExpenseCategories: [TransactionCategory] = [] {
+        didSet { saveUserData() }
+    }
+    @Published var customIncomeCategories: [TransactionCategory] = [] {
         didSet { saveUserData() }
     }
     
     // Tempat penyimpanan terpusat seluruh user dalam bentuk JSON String
     @AppStorage("all_users_financial_data") private var allUsersRawData: String = "{}"
     
-    // Email user yang sedang aktif saat ini (Tetap private untuk keamanan enkapsulasi)
-    private var currentUserEmail: String = "guest"
+    // Email user yang sedang aktif saat ini disimpan agar sesi login bisa dipulihkan saat app dibuka ulang.
+    @AppStorage("current_user_email") private var currentUserEmail: String = ""
     
     // 🌟 Jembatan Akses Publik untuk ProfileView & View Eksternal Lainnya
     var currentUserEmailPublic: String {
@@ -39,6 +47,45 @@ class FinancialStore: ObservableObject {
         var kantong: [Kantong]
         var transaksi: [Transaction]
         var spendingCap: Double
+        var monthlyIncome: Double
+        var customExpenseCategories: [TransactionCategory]
+        var customIncomeCategories: [TransactionCategory]
+        
+        init(
+            name: String,
+            password: String,
+            kantong: [Kantong],
+            transaksi: [Transaction],
+            spendingCap: Double,
+            monthlyIncome: Double = 0,
+            customExpenseCategories: [TransactionCategory] = [],
+            customIncomeCategories: [TransactionCategory] = []
+        ) {
+            self.name = name
+            self.password = password
+            self.kantong = kantong
+            self.transaksi = transaksi
+            self.spendingCap = spendingCap
+            self.monthlyIncome = monthlyIncome
+            self.customExpenseCategories = customExpenseCategories
+            self.customIncomeCategories = customIncomeCategories
+        }
+        
+        private enum CodingKeys: String, CodingKey {
+            case name, password, kantong, transaksi, spendingCap, monthlyIncome, customExpenseCategories, customIncomeCategories
+        }
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            name = try container.decode(String.self, forKey: .name)
+            password = try container.decode(String.self, forKey: .password)
+            kantong = try container.decode([Kantong].self, forKey: .kantong)
+            transaksi = try container.decode([Transaction].self, forKey: .transaksi)
+            spendingCap = try container.decode(Double.self, forKey: .spendingCap)
+            monthlyIncome = try container.decodeIfPresent(Double.self, forKey: .monthlyIncome) ?? 0
+            customExpenseCategories = try container.decodeIfPresent([TransactionCategory].self, forKey: .customExpenseCategories) ?? []
+            customIncomeCategories = try container.decodeIfPresent([TransactionCategory].self, forKey: .customIncomeCategories) ?? []
+        }
     }
     
     // MARK: - Computed Property Pembantu untuk OnBoardingView
@@ -49,19 +96,33 @@ class FinancialStore: ObservableObject {
     }
     
     init() {
-        // Jangan panggil setupDummyData secara mentah di sini agar tidak menimpa akun lain
+        if !currentUserEmail.isEmpty {
+            loadCurrentAccountData()
+        }
     }
     
     // 2. LOGIKA SWITCH AKUN (Dipanggil saat Login Berhasil)
     func switchAccount(to email: String) {
         let cleanedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         self.currentUserEmail = cleanedEmail
+        loadCurrentAccountData()
+    }
+    
+    private func loadCurrentAccountData() {
+        guard !currentUserEmail.isEmpty else { return }
         
-        if let userSpecificData = allUsers[cleanedEmail] {
-            // Jika user sudah ada di storage lokal, muat datanya
-            self.daftarKantong = userSpecificData.kantong
-            self.daftarTransaksi = userSpecificData.transaksi
-            self.dailySpendingCap = userSpecificData.spendingCap
+        if let userSpecificData = allUsers[currentUserEmail] {
+            let cleanedUserData = removingUnusedLegacySeedKantong(from: userSpecificData)
+            if cleanedUserData.kantong.count != userSpecificData.kantong.count {
+                saveUserDataModel(cleanedUserData, for: currentUserEmail)
+            }
+            
+            self.daftarKantong = cleanedUserData.kantong
+            self.daftarTransaksi = cleanedUserData.transaksi
+            self.dailySpendingCap = cleanedUserData.spendingCap
+            self.monthlyIncome = cleanedUserData.monthlyIncome
+            self.customExpenseCategories = cleanedUserData.customExpenseCategories
+            self.customIncomeCategories = cleanedUserData.customIncomeCategories
         } else {
             // Jika user baru pertama kali masuk/daftar, buatkan template kantong default khusus dia
             setupDefaultKantongForNewUser()
@@ -73,16 +134,8 @@ class FinancialStore: ObservableObject {
         let cleanedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         var currentUsersList = allUsers
         
-        // Buat temporary template kantong bawaan untuk user baru
-        let rca = Kantong(name: "RCA", balance: 3520000, allocationPercentage: 44, iconName: "creditcard.fill", themeColor: Color(red: 0.2, green: 0.5, blue: 0.9))
-        let gopay = Kantong(name: "GoPay", balance: 1520000, allocationPercentage: 19, iconName: "wallet.pass.fill", themeColor: Color(red: 0.0, green: 0.7, blue: 0.4))
-        let dana = Kantong(name: "DANA", balance: 800000, allocationPercentage: 10, iconName: "b.square.fill", themeColor: Color(red: 0.1, green: 0.6, blue: 1.0))
-        let gwd = Kantong(name: "GWD", balance: 400000, allocationPercentage: 5, iconName: "bitcoinsign.circle.fill", themeColor: Color(red: 0.9, green: 0.6, blue: 0.1))
-        
-        let defaultKantong = [rca, gopay, dana, gwd]
-        let defaultTransaksi = [
-            Transaction(title: "Welcome Bonus \(name)", amount: 50000, date: Date(), category: "Bonus", isIncome: true, sourceKantongId: rca.id)
-        ]
+        let defaultKantong: [Kantong] = []
+        let defaultTransaksi: [Transaction] = []
         
         // Simpan ke struk model baru
         let newUserModel = UserDataModel(
@@ -90,7 +143,10 @@ class FinancialStore: ObservableObject {
             password: password,
             kantong: defaultKantong,
             transaksi: defaultTransaksi,
-            spendingCap: 152000
+            spendingCap: 0,
+            monthlyIncome: 0,
+            customExpenseCategories: [],
+            customIncomeCategories: []
         )
         
         currentUsersList[cleanedEmail] = newUserModel
@@ -118,7 +174,10 @@ class FinancialStore: ObservableObject {
             password: oldPassword,
             kantong: daftarKantong,
             transaksi: daftarTransaksi,
-            spendingCap: dailySpendingCap
+            spendingCap: dailySpendingCap,
+            monthlyIncome: monthlyIncome,
+            customExpenseCategories: customExpenseCategories,
+            customIncomeCategories: customIncomeCategories
         )
         currentUsersList[currentUserEmail] = currentData
         
@@ -129,19 +188,47 @@ class FinancialStore: ObservableObject {
         }
     }
     
-    // Template bawaan untuk setiap user baru saat dipanggil switchAccount pertama kali
     private func setupDefaultKantongForNewUser() {
-        let rca = Kantong(name: "RCA", balance: 3520000, allocationPercentage: 44, iconName: "creditcard.fill", themeColor: Color(red: 0.2, green: 0.5, blue: 0.9))
-        let gopay = Kantong(name: "GoPay", balance: 1520000, allocationPercentage: 19, iconName: "wallet.pass.fill", themeColor: Color(red: 0.0, green: 0.7, blue: 0.4))
-        let dana = Kantong(name: "DANA", balance: 800000, allocationPercentage: 10, iconName: "b.square.fill", themeColor: Color(red: 0.1, green: 0.6, blue: 1.0))
-        let gwd = Kantong(name: "GWD", balance: 400000, allocationPercentage: 5, iconName: "bitcoinsign.circle.fill", themeColor: Color(red: 0.9, green: 0.6, blue: 0.1))
+        self.daftarKantong = []
+        self.dailySpendingCap = 0
+        self.monthlyIncome = 0
+        self.daftarTransaksi = []
+        self.customExpenseCategories = []
+        self.customIncomeCategories = []
+    }
+    
+    private func removingUnusedLegacySeedKantong(from userData: UserDataModel) -> UserDataModel {
+        let legacySeedNames: Set<String> = ["rca", "gopay", "dana", "gwd"]
+        let usedKantongIds = Set(userData.transaksi.map(\.sourceKantongId))
+        let cleanedKantong = userData.kantong.filter { kantong in
+            let normalizedName = kantong.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let isLegacySeed = legacySeedNames.contains(normalizedName)
+            let isUnused = kantong.balance == 0 && !usedKantongIds.contains(kantong.id)
+            return !(isLegacySeed && isUnused)
+        }
         
-        self.daftarKantong = [rca, gopay, dana, gwd]
-        self.dailySpendingCap = 152000
+        guard cleanedKantong.count != userData.kantong.count else { return userData }
         
-        self.daftarTransaksi = [
-            Transaction(title: "Welcome Bonus", amount: 50000, date: Date(), category: "Bonus", isIncome: true, sourceKantongId: rca.id)
-        ]
+        return UserDataModel(
+            name: userData.name,
+            password: userData.password,
+            kantong: cleanedKantong,
+            transaksi: userData.transaksi,
+            spendingCap: userData.spendingCap,
+            monthlyIncome: userData.monthlyIncome,
+            customExpenseCategories: userData.customExpenseCategories,
+            customIncomeCategories: userData.customIncomeCategories
+        )
+    }
+    
+    private func saveUserDataModel(_ userData: UserDataModel, for email: String) {
+        var currentUsersList = allUsers
+        currentUsersList[email] = userData
+        
+        if let encoded = try? JSONEncoder().encode(currentUsersList),
+           let jsonString = String(data: encoded, encoding: .utf8) {
+            allUsersRawData = jsonString
+        }
     }
     
     // 4. COMPUTED PROPERTIES
@@ -160,6 +247,17 @@ class FinancialStore: ObservableObject {
         return daftarKantong.first(where: { $0.id == id })?.name ?? "Unknown"
     }
     
+    func addKantong(name: String, balance: Double, iconName: String, themeColor: Color) {
+        let newKantong = Kantong(
+            name: name,
+            balance: balance,
+            allocationPercentage: 0,
+            iconName: iconName,
+            themeColor: themeColor
+        )
+        daftarKantong.append(newKantong)
+    }
+    
     func addTransaction(title: String, amount: Double, category: String, isIncome: Bool, kantongId: UUID) {
         let newTransaction = Transaction(title: title, amount: amount, date: Date(), category: category, isIncome: isIncome, sourceKantongId: kantongId)
         daftarTransaksi.insert(newTransaction, at: 0)
@@ -171,5 +269,55 @@ class FinancialStore: ObservableObject {
                 daftarKantong[index].balance -= amount
             }
         }
+    }
+    
+    func addCustomCategory(name: String, symbolName: String, isIncome: Bool) {
+        let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedName.isEmpty else { return }
+        
+        let newCategory = TransactionCategory(name: cleanedName, symbolName: symbolName)
+        if isIncome {
+            guard !customIncomeCategories.contains(where: { $0.name.caseInsensitiveCompare(cleanedName) == .orderedSame }) else { return }
+            customIncomeCategories.append(newCategory)
+        } else {
+            guard !customExpenseCategories.contains(where: { $0.name.caseInsensitiveCompare(cleanedName) == .orderedSame }) else { return }
+            customExpenseCategories.append(newCategory)
+        }
+    }
+    
+    func updateCurrentUserPassword(to newPassword: String) {
+        guard currentUserEmail != "guest", !currentUserEmail.isEmpty else { return }
+        var currentUsersList = allUsers
+        guard var user = currentUsersList[currentUserEmail] else { return }
+        user.password = newPassword
+        currentUsersList[currentUserEmail] = user
+        
+        if let encoded = try? JSONEncoder().encode(currentUsersList),
+           let jsonString = String(data: encoded, encoding: .utf8) {
+            allUsersRawData = jsonString
+        }
+    }
+    
+    func deleteCurrentAccount() {
+        guard currentUserEmail != "guest", !currentUserEmail.isEmpty else { return }
+        var currentUsersList = allUsers
+        currentUsersList.removeValue(forKey: currentUserEmail)
+        
+        if let encoded = try? JSONEncoder().encode(currentUsersList),
+           let jsonString = String(data: encoded, encoding: .utf8) {
+            allUsersRawData = jsonString
+        }
+        
+        signOut()
+    }
+    
+    func signOut() {
+        currentUserEmail = ""
+        daftarKantong = []
+        daftarTransaksi = []
+        dailySpendingCap = 0
+        monthlyIncome = 0
+        customExpenseCategories = []
+        customIncomeCategories = []
     }
 }
