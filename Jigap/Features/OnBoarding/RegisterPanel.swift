@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct RegisterPanel: View {
-    // 1. Sesuaikan closure agar mengirimkan nama, email, dan password ke OnBoardingView
     let onCreateAccount: (String, String, String) -> Void
     let onSwitchToLogin: () -> Void
     
@@ -17,8 +16,6 @@ struct RegisterPanel: View {
     @State private var password = ""
     @State private var confirmPassword = ""
     @State private var isPasswordVisible = false
-    
-    // Status pesan eksternal & internal untuk feedback visual
     @Binding var errorMessage: String?
     @State private var successMessage: String? = nil
     
@@ -119,10 +116,10 @@ struct RegisterPanel: View {
                     return
                 }
                 
-                // Lemparkan data ke OnBoardingView untuk didaftarkan ke FinancialStore
+                // Lemparkan data ke OnBoardingView
                 onCreateAccount(fullName, email, password)
                 
-                // Jika tidak ada error dari Store (misal email duplikat), tampilkan sukses
+                // Jika tidak ada error dari Store
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     if errorMessage == nil {
                         withAnimation(.easeInOut) {

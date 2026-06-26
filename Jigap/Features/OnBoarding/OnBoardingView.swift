@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct OnBoardingView: View {
-    // Ambil store global yang disuntikkan dari JigapApp.swift
     @EnvironmentObject var store: FinancialStore
     @AppStorage("isLoggedIn") private var isLoggedIn: Bool = false
     
@@ -35,9 +34,7 @@ struct OnBoardingView: View {
                                 // Ambil daftar user berbasis memori di FinancialStore
                                 if let user = store.allUsers[cleanedEmail] {
                                     if user.password == passwordData {
-                                        // 1. Set nama user aktif di store finansial jika cocok
                                         store.switchAccount(to: cleanedEmail)
-                                        // 2. Trigger ganti halaman ke dashboard
                                         withAnimation { isLoggedIn = true }
                                         onAuthenticated()
                                     } else {
@@ -52,30 +49,27 @@ struct OnBoardingView: View {
                                 }
                             },
                             onSwitchToRegister: {
-                                authErrorMessage = nil // Reset pesan saat tukar halaman
+                                authErrorMessage = nil
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
                                     mode = .register
                                 }
                             },
                             onContinue: {
-                                // Masuk sebagai guest dari tombol dalam panel
                                 store.switchAccount(to: "guest_user")
                                 withAnimation { isLoggedIn = true }
                                 onAuthenticated()
                             },
-                            errorMessage: $authErrorMessage // Ikat state error ke panel login
+                            errorMessage: $authErrorMessage
                         )
                         .transition(.asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .move(edge: .leading).combined(with: .opacity)))
                     } else {
                         RegisterPanel(
                             onCreateAccount: { nameData, emailData, passwordData in
-                                // Validasi memori lokal: Cek jika email sudah terpakai
                                 if store.allUsers[emailData] != nil {
                                     withAnimation(.easeInOut) {
                                         authErrorMessage = "Email ini sudah terdaftar di perangkat ini."
                                     }
                                 } else {
-                                    // 1. Buatkan akun memori terpisah baru di FinancialStore
                                     store.registerNewUser(name: nameData, email: emailData, password: passwordData)
                                     store.switchAccount(to: emailData)
                                     
@@ -85,12 +79,12 @@ struct OnBoardingView: View {
                                 }
                             },
                             onSwitchToLogin: {
-                                authErrorMessage = nil // Reset pesan saat tukar halaman
+                                authErrorMessage = nil
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
                                     mode = .login
                                 }
                             },
-                            errorMessage: $authErrorMessage // Ikat state error ke panel register
+                            errorMessage: $authErrorMessage
                         )
                         .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                     }
@@ -112,7 +106,6 @@ struct OnBoardingView: View {
         VStack(spacing: 6) {
             if mode == .login {
                 Button(action: {
-                    // FIX: Set status akun & trigger perpindahan view root
                     store.switchAccount(to: "guest_user")
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                         isLoggedIn = true

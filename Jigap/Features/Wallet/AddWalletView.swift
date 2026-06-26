@@ -11,13 +11,11 @@ struct AddWalletView: View {
     @ObservedObject var store: FinancialStore
     @Environment(\.dismiss) private var dismiss
     
-    // State lokal form input
     @State private var walletName: String = ""
     @State private var initialBalance: String = ""
     @State private var selectedIcon: String = "creditcard.fill"
     @State private var selectedColor: Color = Color(red: 1.0, green: 0.18, blue: 0.48)
     
-    // Konstanta Visual Properti
     private let darkBackground = Color(red: 0.045, green: 0.005, blue: 0.055)
     private let availableIcons = ["creditcard.fill", "banknote.fill", "cart.fill", "bag.fill", "heart.fill", "car.fill"]
     private let availableColors: [Color] = [

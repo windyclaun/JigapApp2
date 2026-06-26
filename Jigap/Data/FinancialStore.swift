@@ -29,13 +29,10 @@ class FinancialStore: ObservableObject {
         didSet { saveUserData() }
     }
     
-    // Tempat penyimpanan terpusat seluruh user dalam bentuk JSON String
     @AppStorage("all_users_financial_data") private var allUsersRawData: String = "{}"
     
-    // Email user yang sedang aktif saat ini disimpan agar sesi login bisa dipulihkan saat app dibuka ulang.
     @AppStorage("current_user_email") private var currentUserEmail: String = ""
     
-    // 🌟 Jembatan Akses Publik untuk ProfileView & View Eksternal Lainnya
     var currentUserEmailPublic: String {
         return currentUserEmail
     }
@@ -88,8 +85,6 @@ class FinancialStore: ObservableObject {
         }
     }
     
-    // MARK: - Computed Property Pembantu untuk OnBoardingView
-    /// Mengembalikan dictionary semua user yang ter-decode dari JSON string AppStorage
     var allUsers: [String: UserDataModel] {
         guard let data = allUsersRawData.data(using: .utf8) else { return [:] }
         return (try? JSONDecoder().decode([String: UserDataModel].self, from: data)) ?? [:]
@@ -124,20 +119,16 @@ class FinancialStore: ObservableObject {
             self.customExpenseCategories = cleanedUserData.customExpenseCategories
             self.customIncomeCategories = cleanedUserData.customIncomeCategories
         } else {
-            // Jika user baru pertama kali masuk/daftar, buatkan template kantong default khusus dia
             setupDefaultKantongForNewUser()
         }
     }
-    
-    // MARK: - LOGIKA DAFTAR USER BARU (Dipanggil dari RegisterPanel via OnBoardingView)
-    func registerNewUser(name: String, email: String, password: String) {
+        func registerNewUser(name: String, email: String, password: String) {
         let cleanedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         var currentUsersList = allUsers
         
         let defaultKantong: [Kantong] = []
         let defaultTransaksi: [Transaction] = []
         
-        // Simpan ke struk model baru
         let newUserModel = UserDataModel(
             name: name,
             password: password,
@@ -151,24 +142,20 @@ class FinancialStore: ObservableObject {
         
         currentUsersList[cleanedEmail] = newUserModel
         
-        // Save langsung ke AppStorage string
         if let encoded = try? JSONEncoder().encode(currentUsersList),
            let jsonString = String(data: encoded, encoding: .utf8) {
             allUsersRawData = jsonString
         }
     }
     
-    // 3. LOGIKA SAVE DATA KELOKAL PER USER
     private func saveUserData() {
         guard currentUserEmail != "guest", !currentUserEmail.isEmpty else { return }
         
         var currentUsersList = allUsers
         
-        // Ambil data nama & password lama agar tidak hilang saat data transaksi di-update
         let oldName = currentUsersList[currentUserEmail]?.name ?? "User"
         let oldPassword = currentUsersList[currentUserEmail]?.password ?? ""
         
-        // Bungkus data aktif saat ini
         let currentData = UserDataModel(
             name: oldName,
             password: oldPassword,

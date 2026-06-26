@@ -5,13 +5,6 @@
 //  Created by Windy Claudia Napitupulu on 17/06/26.
 //
 
-//
-//  DashboardViewModel.swift
-//  Jigap
-//
-//  Created by Windy Claudia Napitupulu on 14/06/26.
-//
-
 import SwiftUI
 import Combine
 
@@ -135,7 +128,6 @@ class DashboardViewModel: ObservableObject {
     }
 }
 
-// Model internal untuk chart mingguan tetap berada di sisi logic
 struct WeeklyBar: Identifiable {
     let id = UUID()
     let label: String
